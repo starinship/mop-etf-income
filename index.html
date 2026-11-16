@@ -93,13 +93,13 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   <header class="head">
     <div class="ek">Mo Star · Macau</div>
     <h1>MOP 固定收益 ETF 組合追蹤</h1>
-    <div class="as">目標配置 JEPQ 50% · JEPI 30% · SCHD 20% · 總資本 MOP 1,000,000</div>
+    <div class="as">目標配置 JEPQ 50% · JEPI 30% · SCHD 20% · 金額請按實際持倉自行填入</div>
   </header>
 
   <div class="toolbar">
     <button class="btn gold" type="button" id="btnExport">匯出 JSON</button>
     <button class="btn" type="button" id="btnImport">匯入 JSON</button>
-    <button class="btn danger" type="button" id="btnReset">重設為目標計劃</button>
+    <button class="btn danger" type="button" id="btnReset">重設資料</button>
     <input type="file" id="importFile" class="hidden-file" accept="application/json,.json">
   </div>
 
@@ -108,7 +108,7 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
       <label>匯率（MOP / USD）</label>
       <input type="number" id="fxRate" step="0.01" min="0.01">
     </div>
-    <div class="note">券商：螞蟻銀行（澳門）美股 · 美國股息預扣稅約 30% · 可手動更新現價</div>
+    <div class="note">匯率預填約 8.08 MOP／USD（2026-11-16 參考）· 現價與殖利率為 2026-11-13 收市參考，可自行修改 · 螞蟻銀行（澳門）美股 · 美國股息預扣稅約 30%</div>
   </div>
 
   <!-- Overview -->
@@ -117,14 +117,14 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   <!-- Allocation bars -->
   <section class="section">
     <h2><span class="n">01</span> 配置 vs 目標</h2>
-    <p class="hint">實線為目前權重；黃線標記目標（50 / 30 / 20）。</p>
+    <p class="hint">實線為目前權重；黃線標記目標（50 / 30 / 20）。填入實際持倉後才會顯示權重。</p>
     <div class="bars" id="allocBars"></div>
   </section>
 
   <!-- Holdings -->
   <section class="section">
     <h2><span class="n">02</span> 持倉明細</h2>
-    <p class="hint">可編輯股數、平均成本、現價、殖利率。按「依目標金額估算股數」以 目標MOP ÷ 匯率 ÷ 現價 填入股數。</p>
+    <p class="hint">請按實際持倉自行填入目標金額、股數與均成本。匯率、現價與殖利率已預填，可再按市況修改。若先填目標 MOP，可按「依目標金額估算股數」以 目標MOP ÷ 匯率 ÷ 現價 試算股數。</p>
     <div style="margin-bottom:10px">
       <button class="btn primary sm" type="button" id="btnEstimateShares">依目標金額估算股數</button>
     </div>
@@ -198,13 +198,13 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   <!-- Payback / compound -->
   <section class="section">
     <h2><span class="n">05</span> 回本／複利試算</h2>
-    <p class="hint">以月複利計算：累計稅後股息何時 ≥ MOP 1,000,000（股息回本），以及連本帶利之組合總值成長。</p>
+    <p class="hint">以月複利計算：累計稅後股息何時 ≥ 起始本金（股息回本），以及連本帶利之組合總值成長。起始本金請按實際填入。</p>
     <div class="grid2">
       <div>
         <div class="form-row">
           <div class="field"><label>稅後年化殖利率 %</label><input type="number" id="cYield" step="0.1" value="6.3"></div>
           <div class="field"><label>年股價變動 %</label><input type="number" id="cPriceChg" step="0.1" value="0"></div>
-          <div class="field"><label>起始本金 MOP</label><input type="number" id="cPrincipal" step="1000" value="1000000"></div>
+          <div class="field"><label>起始本金 MOP</label><input type="number" id="cPrincipal" step="1000" placeholder="請按實際填入"></div>
         </div>
         <button class="btn primary sm" type="button" id="btnCalc">重新計算</button>
       </div>
@@ -221,8 +221,9 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   'use strict';
 
   const STORAGE_KEY = 'mop-etf-income-v1';
+  const DATA_VERSION = 2;
   const TAX_RATE = 0.30;
-  const TARGET_TOTAL = 1000000;
+  const DEFAULT_FX = 8.08;
 
   const NAMES = {
     JEPQ: 'JPMorgan Nasdaq Equity Premium Income',
@@ -231,14 +232,15 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   };
 
   const DEFAULTS = {
-    fxRate: 7.8,
+    dataVersion: DATA_VERSION,
+    fxRate: DEFAULT_FX,
     holdings: [
-      { ticker: 'JEPQ', targetMop: 500000, shares: 0, avgCost: 61.10, price: 61.10, yield: 10.8 },
-      { ticker: 'JEPI', targetMop: 300000, shares: 0, avgCost: 56.58, price: 56.58, yield: 8.0 },
-      { ticker: 'SCHD', targetMop: 200000, shares: 0, avgCost: 33.28, price: 33.28, yield: 3.0 }
+      { ticker: 'JEPQ', targetMop: 0, shares: 0, avgCost: 0, price: 56.19, yield: 11.5 },
+      { ticker: 'JEPI', targetMop: 0, shares: 0, avgCost: 0, price: 57.96, yield: 7.2 },
+      { ticker: 'SCHD', targetMop: 0, shares: 0, avgCost: 0, price: 36.12, yield: 3.0 }
     ],
     dividends: [],
-    calc: { yield: 6.3, priceChg: 0, principal: 1000000 }
+    calc: { yield: 6.3, priceChg: 0, principal: 0 }
   };
 
   let state = loadState();
@@ -248,16 +250,16 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return withEstimatedShares(deepClone(DEFAULTS));
-      const parsed = JSON.parse(raw);
-      return normalize(parsed);
+      if (!raw) return deepClone(DEFAULTS);
+      return migrateLegacyPrefill(normalize(JSON.parse(raw)));
     } catch (e) {
-      return withEstimatedShares(deepClone(DEFAULTS));
+      return deepClone(DEFAULTS);
     }
   }
 
   function normalize(s) {
     const d = deepClone(DEFAULTS);
+    d.dataVersion = num(s.dataVersion, 1);
     if (typeof s.fxRate === 'number' && s.fxRate > 0) d.fxRate = s.fxRate;
     if (Array.isArray(s.holdings) && s.holdings.length) {
       d.holdings = DEFAULTS.holdings.map(function (def) {
@@ -265,9 +267,9 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
         if (!found) return deepClone(def);
         return {
           ticker: def.ticker,
-          targetMop: num(found.targetMop, def.targetMop),
+          targetMop: num(found.targetMop, 0),
           shares: num(found.shares, 0),
-          avgCost: num(found.avgCost, def.avgCost),
+          avgCost: num(found.avgCost, 0),
           price: num(found.price, def.price),
           yield: num(found.yield, def.yield)
         };
@@ -277,18 +279,58 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
     if (s.calc) {
       d.calc.yield = num(s.calc.yield, 6.3);
       d.calc.priceChg = num(s.calc.priceChg, 0);
-      d.calc.principal = num(s.calc.principal, 1000000);
+      d.calc.principal = num(s.calc.principal, 0);
     }
     return d;
   }
 
+  function looksLikeLegacyPrefill(s) {
+    if (!s || num(s.dataVersion, 1) >= DATA_VERSION) return false;
+    if (s.dividends && s.dividends.length) return false;
+    const map = {};
+    (s.holdings || []).forEach(function (h) { map[h.ticker] = h; });
+    const jepq = map.JEPQ, jepi = map.JEPI, schd = map.SCHD;
+    if (!jepq || !jepi || !schd) return false;
+    return num(jepq.targetMop, 0) === 500000
+      && num(jepi.targetMop, 0) === 300000
+      && num(schd.targetMop, 0) === 200000;
+  }
+
+  function migrateLegacyPrefill(s) {
+    if (num(s.dataVersion, 1) >= DATA_VERSION) return s;
+    if (looksLikeLegacyPrefill(s)) {
+      const oldPrices = { JEPQ: 61.10, JEPI: 56.58, SCHD: 33.28 };
+      const oldYields = { JEPQ: 10.8, JEPI: 8.0, SCHD: 3.0 };
+      s.holdings.forEach(function (h) {
+        const def = DEFAULTS.holdings.find(function (x) { return x.ticker === h.ticker; });
+        h.targetMop = 0;
+        h.shares = 0;
+        h.avgCost = 0;
+        if (def && (h.price === oldPrices[h.ticker] || h.price === 0)) h.price = def.price;
+        if (def && (h.yield === oldYields[h.ticker] || h.yield === 0)) h.yield = def.yield;
+      });
+      if (s.fxRate === 7.8) s.fxRate = DEFAULT_FX;
+      if (s.calc && (s.calc.principal === 1000000 || !s.calc.principal)) s.calc.principal = 0;
+    }
+    s.dataVersion = DATA_VERSION;
+    return s;
+  }
+
   function withEstimatedShares(s) {
     s.holdings.forEach(function (h) {
-      if (h.price > 0 && s.fxRate > 0) {
+      if (h.targetMop > 0 && h.price > 0 && s.fxRate > 0) {
         h.shares = Math.floor((h.targetMop / s.fxRate / h.price) * 10000) / 10000;
       }
     });
     return s;
+  }
+
+  function amtAttr(n) {
+    return n ? String(n) : '';
+  }
+
+  function targetTotal() {
+    return state.holdings.reduce(function (sum, h) { return sum + (h.targetMop || 0); }, 0);
   }
 
   function num(v, fallback) {
@@ -341,13 +383,17 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
     const plClass = p.pl > 0.5 ? 'pos' : (p.pl < -0.5 ? 'neg' : 'flat');
     const plSign = p.pl >= 0 ? '+' : '';
     const el = document.getElementById('kpiCards');
+    const tt = targetTotal();
+    const progressKpi = tt > 0
+      ? kpi('對目標進度', fmt((p.mv / tt) * 100, 1) + '%', '目標 ' + fmtMop(tt), 'blue')
+      : kpi('對目標進度', '—', '請自行填入目標金額', 'blue');
     el.innerHTML =
       kpi('總成本', fmtMop(p.cost), '依均成本 × 股數 × 匯率') +
       kpi('現市值', fmtMop(p.mv), '依現價 × 股數 × 匯率', 'accent') +
       kpi('未實現損益', plSign + fmtMop(p.pl), p.cost > 0 ? ('報酬率 ' + plSign + fmt((p.pl / p.cost) * 100, 2) + '%') : '—', plClass) +
       kpi('預估月息（稅前）', fmtMop(p.monthlyGross, 0), '殖利率 × 市值 ÷ 12') +
       kpi('預估月息（稅後 30%）', fmtMop(p.monthlyNet, 0), '約年化稅後 ' + fmt(p.mv > 0 ? (p.monthlyNet * 12 / p.mv) * 100 : 0, 2) + '%', 'pos') +
-      kpi('對目標進度', fmt((p.mv / TARGET_TOTAL) * 100, 1) + '%', '目標 ' + fmtMop(TARGET_TOTAL), 'blue');
+      progressKpi;
   }
 
   function kpi(lbl, val, sub, cls) {
@@ -381,10 +427,10 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
       return '<tr>' +
         '<td class="left"><strong>' + h.ticker + '</strong></td>' +
         '<td class="left" style="max-width:180px;white-space:normal;font-size:12px;color:#9aa7b5">' + NAMES[h.ticker] + '</td>' +
-        '<td>' + fmt(h.targetMop) + '</td>' +
-        '<td><input class="cell" data-i="' + i + '" data-f="shares" type="number" step="0.0001" min="0" value="' + h.shares + '"></td>' +
-        '<td><input class="cell" data-i="' + i + '" data-f="avgCost" type="number" step="0.01" min="0" value="' + h.avgCost + '"></td>' +
-        '<td><input class="cell" data-i="' + i + '" data-f="price" type="number" step="0.01" min="0" value="' + h.price + '"></td>' +
+        '<td><input class="cell wide" data-i="' + i + '" data-f="targetMop" type="number" step="1000" min="0" placeholder="自行填入" value="' + amtAttr(h.targetMop) + '"></td>' +
+        '<td><input class="cell" data-i="' + i + '" data-f="shares" type="number" step="0.0001" min="0" placeholder="自行填入" value="' + amtAttr(h.shares) + '"></td>' +
+        '<td><input class="cell" data-i="' + i + '" data-f="avgCost" type="number" step="0.01" min="0" placeholder="自行填入" value="' + amtAttr(h.avgCost) + '"></td>' +
+        '<td><input class="cell" data-i="' + i + '" data-f="price" type="number" step="0.01" min="0" value="' + amtAttr(h.price) + '"></td>' +
         '<td>' + fmt(r.mvMop) + '</td>' +
         '<td>' + fmt(r.weight, 1) + '%</td>' +
         '<td><input class="cell" data-i="' + i + '" data-f="yield" type="number" step="0.1" min="0" value="' + h.yield + '" style="width:70px"></td>' +
@@ -410,11 +456,14 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   }
 
   function estimateShares() {
+    const filled = state.holdings.some(function (h) { return h.targetMop > 0; });
+    if (!filled) {
+      alert('請先按實際計劃填入各基金的目標 MOP，再估算股數。');
+      return;
+    }
+    withEstimatedShares(state);
     state.holdings.forEach(function (h) {
-      if (h.price > 0 && state.fxRate > 0) {
-        h.shares = Math.floor((h.targetMop / state.fxRate / h.price) * 10000) / 10000;
-        if (!h.avgCost) h.avgCost = h.price;
-      }
+      if (h.targetMop > 0 && !h.avgCost && h.price) h.avgCost = h.price;
     });
     save();
     renderAll();
@@ -434,6 +483,11 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
       return r.h.ticker + ' 目前 <b>' + fmt(r.weight, 1) + '%</b>（目標 ' + t + '%，差距 <span class="' + cls + '">' + (diff >= 0 ? '+' : '') + fmt(diff, 1) + '%</span> · ' + tag + '）';
     });
     const box = document.getElementById('rebalanceBox');
+    if (p.mv <= 0) {
+      box.className = 'callout';
+      box.innerHTML = '尚未填入持倉。請按實際股數與均成本自行填寫；填好後會顯示與 50 / 30 / 20 目標的差距。';
+      return;
+    }
     box.className = 'callout ' + (minDiff < -1 ? 'warn' : 'good');
     box.innerHTML = lines.join('<br>') +
       '<br><br>建議：下個月股息優先投入<strong>最偏低</strong>的 <b>' + mostUnder + '</b>，逐步拉回 50 / 30 / 20。' +
@@ -519,13 +573,18 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   }
 
   function renderCalc() {
-    document.getElementById('cYield').value = state.calc.yield;
+    document.getElementById('cYield').value = amtAttr(state.calc.yield) || state.calc.yield;
     document.getElementById('cPriceChg').value = state.calc.priceChg;
-    document.getElementById('cPrincipal').value = state.calc.principal;
+    document.getElementById('cPrincipal').value = amtAttr(state.calc.principal);
+
+    const P = state.calc.principal;
+    if (!(P > 0)) {
+      document.getElementById('calcResult').innerHTML = '<div class="empty" style="display:block;padding:8px 0">請先按實際填入起始本金，再計算回本與複利。</div>';
+      return;
+    }
 
     const y = state.calc.yield / 100;
     const g = state.calc.priceChg / 100;
-    const P = state.calc.principal;
     const rm = y / 12;
     const gm = Math.pow(1 + g, 1 / 12) - 1;
 
@@ -563,7 +622,7 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   function runCalc() {
     state.calc.yield = num(document.getElementById('cYield').value, 6.3);
     state.calc.priceChg = num(document.getElementById('cPriceChg').value, 0);
-    state.calc.principal = num(document.getElementById('cPrincipal').value, 1000000);
+    state.calc.principal = num(document.getElementById('cPrincipal').value, 0);
     save();
     renderCalc();
   }
@@ -584,8 +643,8 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
 
   // Events
   document.getElementById('fxRate').addEventListener('change', function () {
-    const v = num(this.value, 7.8);
-    state.fxRate = v > 0 ? v : 7.8;
+    const v = num(this.value, DEFAULT_FX);
+    state.fxRate = v > 0 ? v : DEFAULT_FX;
     this.value = state.fxRate;
     save();
     renderAll(false);
@@ -643,8 +702,8 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   });
 
   document.getElementById('btnReset').addEventListener('click', function () {
-    if (!confirm('確定重設為目標計劃？目前資料將被清除。')) return;
-    state = withEstimatedShares(deepClone(DEFAULTS));
+    if (!confirm('確定重設資料？已填的持倉、目標金額與股息會被清除；匯率、現價與殖利率會還原為預設參考值。')) return;
+    state = deepClone(DEFAULTS);
     save();
     renderAll();
   });
@@ -656,7 +715,6 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
     document.getElementById('dDate').value = iso;
   })();
 
-  // First visit: estimate shares once when no storage
   if (!localStorage.getItem(STORAGE_KEY)) {
     save();
   }
