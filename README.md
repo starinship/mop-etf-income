@@ -20,7 +20,7 @@
 
 ## 資料儲存
 
-- 自動存於瀏覽器 `localStorage`，鍵名：`mop-etf-income-v1`
+- 自動存於瀏覽器 `localStorage`，鍵名：`mop-etf-income-v2`
 - 資料**只留在此瀏覽器**；清除網站資料會遺失，請定期「匯出 JSON」備份
 - 換電腦或換瀏覽器時，用「匯入 JSON」還原
 

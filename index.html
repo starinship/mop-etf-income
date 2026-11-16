@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>MOP 固定收益 ETF 組合追蹤 — Mo Star</title>
 <style>
 *{box-sizing:border-box}
@@ -213,15 +216,16 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   </section>
 
   <div class="disclaimer">教學用途，非個人投資建議。價格、殖利率與稅務假設需自行核實；過往表現不代表未來結果。</div>
-  <footer>localStorage 鍵：mop-etf-income-v1 · 資料僅存於此瀏覽器</footer>
+  <footer>localStorage 鍵：mop-etf-income-v2 · 資料僅存於此瀏覽器 · 頁面更新 2026-11-16</footer>
 </div>
 
 <script>
 (function () {
   'use strict';
 
-  const STORAGE_KEY = 'mop-etf-income-v1';
-  const DATA_VERSION = 2;
+  const STORAGE_KEY = 'mop-etf-income-v2';
+  const LEGACY_STORAGE_KEY = 'mop-etf-income-v1';
+  const DATA_VERSION = 3;
   const TAX_RATE = 0.30;
   const DEFAULT_FX = 8.08;
 
@@ -233,6 +237,7 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
 
   const DEFAULTS = {
     dataVersion: DATA_VERSION,
+    clearedSamplePrefill: true,
     fxRate: DEFAULT_FX,
     holdings: [
       { ticker: 'JEPQ', targetMop: 0, shares: 0, avgCost: 0, price: 56.19, yield: 11.5 },
@@ -250,8 +255,13 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return deepClone(DEFAULTS);
-      return migrateLegacyPrefill(normalize(JSON.parse(raw)));
+      if (raw) return migrateLegacyPrefill(normalize(JSON.parse(raw)));
+      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacy) {
+        const migrated = migrateLegacyPrefill(normalize(JSON.parse(legacy)));
+        return migrated;
+      }
+      return deepClone(DEFAULTS);
     } catch (e) {
       return deepClone(DEFAULTS);
     }
@@ -260,6 +270,7 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   function normalize(s) {
     const d = deepClone(DEFAULTS);
     d.dataVersion = num(s.dataVersion, 1);
+    d.clearedSamplePrefill = !!s.clearedSamplePrefill;
     if (typeof s.fxRate === 'number' && s.fxRate > 0) d.fxRate = s.fxRate;
     if (Array.isArray(s.holdings) && s.holdings.length) {
       d.holdings = DEFAULTS.holdings.map(function (def) {
@@ -284,11 +295,14 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
     return d;
   }
 
-  function looksLikeLegacyPrefill(s) {
-    if (!s || num(s.dataVersion, 1) >= DATA_VERSION) return false;
-    if (s.dividends && s.dividends.length) return false;
+  function holdingMap(s) {
     const map = {};
     (s.holdings || []).forEach(function (h) { map[h.ticker] = h; });
+    return map;
+  }
+
+  function hasSampleTargets(s) {
+    const map = holdingMap(s);
     const jepq = map.JEPQ, jepi = map.JEPI, schd = map.SCHD;
     if (!jepq || !jepi || !schd) return false;
     return num(jepq.targetMop, 0) === 500000
@@ -296,22 +310,44 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
       && num(schd.targetMop, 0) === 200000;
   }
 
+  function estimatedShareCount(h, fx) {
+    if (h && h.targetMop > 0 && h.price > 0 && fx > 0) {
+      return Math.floor((h.targetMop / fx / h.price) * 10000) / 10000;
+    }
+    return 0;
+  }
+
+  function sharesLookCustom(s) {
+    return (s.holdings || []).some(function (h) {
+      if (!h.shares) return false;
+      const est = estimatedShareCount(h, s.fxRate);
+      return Math.abs(h.shares - est) > 0.00011;
+    });
+  }
+
   function migrateLegacyPrefill(s) {
-    if (num(s.dataVersion, 1) >= DATA_VERSION) return s;
-    if (looksLikeLegacyPrefill(s)) {
-      const oldPrices = { JEPQ: 61.10, JEPI: 56.58, SCHD: 33.28 };
-      const oldYields = { JEPQ: 10.8, JEPI: 8.0, SCHD: 3.0 };
+    const oldPrices = { JEPQ: 61.10, JEPI: 56.58, SCHD: 33.28 };
+    const oldYields = { JEPQ: 10.8, JEPI: 8.0, SCHD: 3.0 };
+    const sampleTargets = hasSampleTargets(s);
+    const samplePrincipal = s.calc && num(s.calc.principal, 0) === 1000000;
+    const noDivs = !(s.dividends && s.dividends.length);
+
+    if (sampleTargets && noDivs) {
+      const keepShares = sharesLookCustom(s);
       s.holdings.forEach(function (h) {
         const def = DEFAULTS.holdings.find(function (x) { return x.ticker === h.ticker; });
         h.targetMop = 0;
-        h.shares = 0;
-        h.avgCost = 0;
+        if (!keepShares) {
+          h.shares = 0;
+          h.avgCost = 0;
+        }
         if (def && (h.price === oldPrices[h.ticker] || h.price === 0)) h.price = def.price;
         if (def && (h.yield === oldYields[h.ticker] || h.yield === 0)) h.yield = def.yield;
       });
       if (s.fxRate === 7.8) s.fxRate = DEFAULT_FX;
-      if (s.calc && (s.calc.principal === 1000000 || !s.calc.principal)) s.calc.principal = 0;
     }
+    if (samplePrincipal) s.calc.principal = 0;
+    s.clearedSamplePrefill = true;
     s.dataVersion = DATA_VERSION;
     return s;
   }
@@ -673,7 +709,7 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'mop-etf-income-v1.json';
+    a.download = 'mop-etf-income-v2.json';
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -715,9 +751,8 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
     document.getElementById('dDate').value = iso;
   })();
 
-  if (!localStorage.getItem(STORAGE_KEY)) {
-    save();
-  }
+  save();
+  try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch (e) {}
 
   renderAll();
 })();
