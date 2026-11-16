@@ -96,7 +96,7 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   <header class="head">
     <div class="ek">Mo Star · Macau</div>
     <h1>MOP 固定收益 ETF 組合追蹤</h1>
-    <div class="as">目標配置 JEPQ 50% · JEPI 30% · SCHD 20% · 金額請按實際持倉自行填入</div>
+    <div class="as">目標配置 JEPQ 50% · JEPI 30% · SCHD 20% · 請按實際持倉填入股數與均成本</div>
   </header>
 
   <div class="toolbar">
@@ -127,17 +127,13 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   <!-- Holdings -->
   <section class="section">
     <h2><span class="n">02</span> 持倉明細</h2>
-    <p class="hint">請按實際持倉自行填入目標金額、股數與均成本。匯率、現價與殖利率已預填，可再按市況修改。若先填目標 MOP，可按「依目標金額估算股數」以 目標MOP ÷ 匯率 ÷ 現價 試算股數。</p>
-    <div style="margin-bottom:10px">
-      <button class="btn primary sm" type="button" id="btnEstimateShares">依目標金額估算股數</button>
-    </div>
+    <p class="hint">請按實際持倉自行填入股數與均成本。匯率、現價與殖利率已預填，可再按市況修改。</p>
     <div class="scroll">
       <table>
         <thead>
           <tr>
             <th class="left">代碼</th>
             <th class="left">名稱</th>
-            <th>目標 MOP</th>
             <th>股數</th>
             <th>均成本 USD</th>
             <th>現價 USD</th>
@@ -216,7 +212,7 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   </section>
 
   <div class="disclaimer">教學用途，非個人投資建議。價格、殖利率與稅務假設需自行核實；過往表現不代表未來結果。</div>
-  <footer>localStorage 鍵：mop-etf-income-v2 · 資料僅存於此瀏覽器 · 頁面更新 2026-11-16</footer>
+  <footer>localStorage 鍵：mop-etf-income-v2 · 資料僅存於此瀏覽器 · 頁面更新 2026-11-16d</footer>
 </div>
 
 <script>
@@ -225,7 +221,7 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
 
   const STORAGE_KEY = 'mop-etf-income-v2';
   const LEGACY_STORAGE_KEY = 'mop-etf-income-v1';
-  const DATA_VERSION = 3;
+  const DATA_VERSION = 4;
   const TAX_RATE = 0.30;
   const DEFAULT_FX = 8.08;
 
@@ -347,26 +343,14 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
       if (s.fxRate === 7.8) s.fxRate = DEFAULT_FX;
     }
     if (samplePrincipal) s.calc.principal = 0;
+    s.holdings.forEach(function (h) { h.targetMop = 0; });
     s.clearedSamplePrefill = true;
     s.dataVersion = DATA_VERSION;
     return s;
   }
 
-  function withEstimatedShares(s) {
-    s.holdings.forEach(function (h) {
-      if (h.targetMop > 0 && h.price > 0 && s.fxRate > 0) {
-        h.shares = Math.floor((h.targetMop / s.fxRate / h.price) * 10000) / 10000;
-      }
-    });
-    return s;
-  }
-
   function amtAttr(n) {
     return n ? String(n) : '';
-  }
-
-  function targetTotal() {
-    return state.holdings.reduce(function (sum, h) { return sum + (h.targetMop || 0); }, 0);
   }
 
   function num(v, fallback) {
@@ -419,17 +403,12 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
     const plClass = p.pl > 0.5 ? 'pos' : (p.pl < -0.5 ? 'neg' : 'flat');
     const plSign = p.pl >= 0 ? '+' : '';
     const el = document.getElementById('kpiCards');
-    const tt = targetTotal();
-    const progressKpi = tt > 0
-      ? kpi('對目標進度', fmt((p.mv / tt) * 100, 1) + '%', '目標 ' + fmtMop(tt), 'blue')
-      : kpi('對目標進度', '—', '請自行填入目標金額', 'blue');
     el.innerHTML =
       kpi('總成本', fmtMop(p.cost), '依均成本 × 股數 × 匯率') +
       kpi('現市值', fmtMop(p.mv), '依現價 × 股數 × 匯率', 'accent') +
       kpi('未實現損益', plSign + fmtMop(p.pl), p.cost > 0 ? ('報酬率 ' + plSign + fmt((p.pl / p.cost) * 100, 2) + '%') : '—', plClass) +
       kpi('預估月息（稅前）', fmtMop(p.monthlyGross, 0), '殖利率 × 市值 ÷ 12') +
-      kpi('預估月息（稅後 30%）', fmtMop(p.monthlyNet, 0), '約年化稅後 ' + fmt(p.mv > 0 ? (p.monthlyNet * 12 / p.mv) * 100 : 0, 2) + '%', 'pos') +
-      progressKpi;
+      kpi('預估月息（稅後 30%）', fmtMop(p.monthlyNet, 0), '約年化稅後 ' + fmt(p.mv > 0 ? (p.monthlyNet * 12 / p.mv) * 100 : 0, 2) + '%', 'pos');
   }
 
   function kpi(lbl, val, sub, cls) {
@@ -463,7 +442,6 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
       return '<tr>' +
         '<td class="left"><strong>' + h.ticker + '</strong></td>' +
         '<td class="left" style="max-width:180px;white-space:normal;font-size:12px;color:#9aa7b5">' + NAMES[h.ticker] + '</td>' +
-        '<td><input class="cell wide" data-i="' + i + '" data-f="targetMop" type="number" step="1000" min="0" placeholder="自行填入" value="' + amtAttr(h.targetMop) + '"></td>' +
         '<td><input class="cell" data-i="' + i + '" data-f="shares" type="number" step="0.0001" min="0" placeholder="自行填入" value="' + amtAttr(h.shares) + '"></td>' +
         '<td><input class="cell" data-i="' + i + '" data-f="avgCost" type="number" step="0.01" min="0" placeholder="自行填入" value="' + amtAttr(h.avgCost) + '"></td>' +
         '<td><input class="cell" data-i="' + i + '" data-f="price" type="number" step="0.01" min="0" value="' + amtAttr(h.price) + '"></td>' +
@@ -489,20 +467,6 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
     state.holdings[i][f] = v;
     save();
     renderAll(false);
-  }
-
-  function estimateShares() {
-    const filled = state.holdings.some(function (h) { return h.targetMop > 0; });
-    if (!filled) {
-      alert('請先按實際計劃填入各基金的目標 MOP，再估算股數。');
-      return;
-    }
-    withEstimatedShares(state);
-    state.holdings.forEach(function (h) {
-      if (h.targetMop > 0 && !h.avgCost && h.price) h.avgCost = h.price;
-    });
-    save();
-    renderAll();
   }
 
   function renderRebalance() {
@@ -686,7 +650,6 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
     renderAll(false);
   });
 
-  document.getElementById('btnEstimateShares').addEventListener('click', estimateShares);
   document.getElementById('btnAddDiv').addEventListener('click', addDividend);
   document.getElementById('btnCalc').addEventListener('click', runCalc);
 
@@ -725,7 +688,7 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
     reader.onload = function () {
       try {
         const parsed = JSON.parse(reader.result);
-        state = normalize(parsed);
+        state = migrateLegacyPrefill(normalize(parsed));
         save();
         renderAll();
         alert('匯入成功');
@@ -738,7 +701,7 @@ footer{margin-top:18px;text-align:center;color:#64748b;font-size:12px}
   });
 
   document.getElementById('btnReset').addEventListener('click', function () {
-    if (!confirm('確定重設資料？已填的持倉、目標金額與股息會被清除；匯率、現價與殖利率會還原為預設參考值。')) return;
+    if (!confirm('確定重設資料？已填的持倉與股息會被清除；匯率、現價與殖利率會還原為預設參考值。')) return;
     state = deepClone(DEFAULTS);
     save();
     renderAll();
